@@ -16,4 +16,4 @@ At the moment, the repository is under preparation.
 Usage instructions will be provided after the code is released.
 
 # Example (to be updated after release)
-python train.py 
+python run.py 
