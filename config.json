@@ -1,0 +1,8 @@
+{
+    "SA": {"pool_size": 80, "top_k": 6, "output_units": 16},
+    "bo": {"pool_size": 20, "top_k": 2, "output_units": 14},
+    "XuZhou": {"pool_size": 80, "top_k": 4, "output_units": 9},
+    "HU2013": {"pool_size": 100, "top_k": 2, "output_units": 15},
+    "HanChuan": {"pool_size": 20, "top_k": 2, "output_units": 16},
+    "HongHu": {"pool_size": 60, "top_k": 2, "output_units": 22}
+}
