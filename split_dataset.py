@@ -3,11 +3,9 @@ import torch
 from sklearn.decomposition import PCA
 import os
 import scipy.io as sio
-from operator import truediv
-import scipy.io as scio
 import cv2 as cv
 
-def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
+def split_train_test(dataset, K, seed=345, perclass=5, windowSize=9):
     def applyPCA(X, numComponents=75):
         newX = np.reshape(X, (-1, X.shape[2]))
         pca = PCA(n_components=numComponents, whiten=True)
@@ -15,10 +13,21 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
         newX = np.reshape(newX, (X.shape[0], X.shape[1], numComponents))
         return newX, pca
 
-
     def loadData(name):
-        
-        data_path = '/data02/zhangqinhan/pc/datasets'
+        possible_paths = [
+            '/data02/zhangqinhan/pc/datasets',
+            '/data02/zhangqinhan/dataset',
+        ]
+
+        data_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                data_path = path
+                break
+
+        if data_path is None:
+            raise FileNotFoundError('找不到有效的数据路径，请确保至少有一个路径存在')
+
         if name == 'IP':
             data = sio.loadmat(os.path.join(data_path, 'Indian_pines_corrected.mat'))['indian_pines_corrected']
             labels = sio.loadmat(os.path.join(data_path, 'Indian_pines_gt.mat'))['indian_pines_gt']
@@ -46,6 +55,24 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
         elif name == 'HongHu':
             data = sio.loadmat(os.path.join(data_path, 'WHU_Hi_HongHu.mat'))['WHU_Hi_HongHu']
             labels = sio.loadmat(os.path.join(data_path, 'WHU_Hi_HongHu_gt.mat'))['WHU_Hi_HongHu_gt']
+        elif name == 'co':
+            data = sio.loadmat('/data02/zhangqinhan/datasets/CopratesChasma.mat')['CopratesChasma']
+            labels = sio.loadmat('/data02/zhangqinhan/datasets/CopratesChasma_train_gt.mat')['CopratesChasma_gt']
+        elif name == 'me':
+            data = sio.loadmat('/data02/zhangqinhan/datasets/MelasChasma.mat')['MelasChasma']
+            labels = sio.loadmat('/data02/zhangqinhan/datasets/MelasChasma_train_gt.mat')['MelasChasma_gt']
+        elif name == 'ga':
+            data = sio.loadmat('/data02/zhangqinhan/datasets/GaleCrater.mat')['GaleCrater']
+            labels = sio.loadmat('/data02/zhangqinhan/datasets/GaleCrater_train_gt.mat')['GaleCrater_gt']
+        elif name == 'nili':
+            data = sio.loadmat('/data02/zhangqinhan/datasets/NiliFossae.mat')['NiliFossae']
+            labels = sio.loadmat('/data02/zhangqinhan/datasets/NiliFossae_gt.mat')['NiliFossae_gt']
+        elif name == 'holden':
+            data = sio.loadmat('/data02/zhangqinhan/datasets/holden.mat')['holden']
+            labels = sio.loadmat('/data02/zhangqinhan/datasets/holden_gt.mat')['holden_gt']
+        elif name == 'utopia':
+            data = sio.loadmat('/data02/zhangqinhan/datasets/Utopia.mat')['Utopia']
+            labels = sio.loadmat('/data02/zhangqinhan/datasets/Utopia_gt.mat')['Utopia_gt']
         elif name == 'XuZhou':
             data = sio.loadmat(os.path.join(data_path, 'xuzhou.mat'))['xuzhou']
             labels = sio.loadmat(os.path.join(data_path, 'xuzhou_gt.mat'))['xuzhou_gt']
@@ -54,7 +81,6 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
             labels = sio.loadmat('/data02/zhangqinhan/pc/datasets/Botswana_gt.mat')['Botswana_gt']
         return data, labels
 
-
     def padWithZeros(X, margin=2):
         newX = np.zeros((X.shape[0] + 2 * margin, X.shape[1] + 2 * margin, X.shape[2]))
         x_offset = margin
@@ -62,37 +88,34 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
         newX[x_offset:X.shape[0] + x_offset, y_offset:X.shape[1] + y_offset, :] = X
         return newX
 
-
-    def createImageCubes(X, y, windowSize=5, removeZeroLabels = True):
+    def createImageCubes(X, y, windowSize=5, removeZeroLabels=True):
         margin = int((windowSize - 1) / 2)
         zeroPaddedX = padWithZeros(X, margin=margin)
-        # split patches
         patchesData = np.zeros((X.shape[0] * X.shape[1], windowSize, windowSize, X.shape[2]))
         patchesLabels = np.zeros((X.shape[0] * X.shape[1]))
-        patchesPositions = np.zeros((X.shape[0] * X.shape[1], 2), dtype=int)  # 记录位置坐标
+        patchesPositions = np.zeros((X.shape[0] * X.shape[1], 2), dtype=int)
         patchIndex = 0
         for r in range(margin, zeroPaddedX.shape[0] - margin):
             for c in range(margin, zeroPaddedX.shape[1] - margin):
                 patch = zeroPaddedX[r - margin:r + margin + 1, c - margin:c + margin + 1]
                 patchesData[patchIndex, :, :, :] = patch
-                patchesLabels[patchIndex] = y[r-margin, c-margin]
-                patchesPositions[patchIndex, :] = [r-margin, c-margin]  # 记录原始坐标
+                patchesLabels[patchIndex] = y[r - margin, c - margin]
+                patchesPositions[patchIndex, :] = [r - margin, c - margin]
                 patchIndex = patchIndex + 1
         if removeZeroLabels:
             valid_indices = patchesLabels > 0
-            patchesData = patchesData[valid_indices,:,:,:]
+            patchesData = patchesData[valid_indices, :, :, :]
             patchesLabels = patchesLabels[valid_indices]
-            patchesPositions = patchesPositions[valid_indices]  # 同时过滤位置坐标
+            patchesPositions = patchesPositions[valid_indices]
             patchesLabels -= 1
 
         return patchesData, patchesLabels, patchesPositions
 
-
-    def split_train_test(X_all, y_all, positions_all, perclass, seed):
+    def split_train_test_data(X_all, y_all, positions_all, perclass, seed):
         unique_classes = np.unique(y_all)
         Xtrain_indices = []
         Xtest_indices = []
-        
+
         for cls in unique_classes:
             cls_indices = np.where(y_all == cls)[0]
             np.random.seed(seed)
@@ -104,21 +127,37 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
 
         Xtrain_indices = np.array(Xtrain_indices)
         Xtest_indices = np.array(Xtest_indices)
-        
-        # 根据索引划分数据集
+
         Xtrain = X_all[Xtrain_indices]
         Xtest = X_all[Xtest_indices]
         ytrain = y_all[Xtrain_indices]
         ytest = y_all[Xtest_indices]
-        Xtrain_positions = positions_all[Xtrain_indices]  # 训练集位置坐标
-        Xtest_positions = positions_all[Xtest_indices]    # 测试集位置坐标
-        
+        Xtrain_positions = positions_all[Xtrain_indices]
+        Xtest_positions = positions_all[Xtest_indices]
+
         return Xtrain, Xtest, ytrain, ytest, Xtrain_positions, Xtest_positions
 
-    print(f'开始划分{dataset}')
-    X, y = loadData(dataset)  # X为高光谱数据，y为标签
+    possible_paths = [
+        '/data02/zhangqinhan/pc',
+        '/data02/zhangqinhan/pc',
+        'datasets',
+    ]
+
+    base_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            base_path = path
+            break
+
+    if base_path is None:
+        raise FileNotFoundError('No valid dataset path found.')
+
+    print(f'Loading {dataset} dataset...')
+    X, y = loadData(dataset)
+    output_units = y.max()
+
     if K != None:
-        X, _ = applyPCA(X, numComponents=K)  # X为降维后的高光谱数据，K为降到的维度，不用管pca
+        X, _ = applyPCA(X, numComponents=K)
     else:
         print('No PCA')
 
@@ -128,7 +167,7 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
         X[:, :, i] = (X[:, :, i] - input_min) / (input_max - input_min)
 
     X_all, y_all, positions_all = createImageCubes(X, y, windowSize=windowSize)
-    Xtrain, Xtest, ytrain, ytest, Xtrain_positions, Xtest_positions = split_train_test(X_all, y_all, positions_all, perclass, seed)
+    Xtrain, Xtest, ytrain, ytest, Xtrain_positions, Xtest_positions = split_train_test_data(X_all, y_all, positions_all, perclass, seed)
     X_all = X_all.reshape(-1, windowSize, windowSize, K, 1)
     Xtrain = Xtrain.reshape(-1, windowSize, windowSize, K, 1)
     Xtest = Xtest.reshape(-1, windowSize, windowSize, K, 1)
@@ -136,5 +175,7 @@ def split_train_test(dataset,K,seed=345,perclass=5,windowSize=9):
     Xtrain = Xtrain.transpose(0, 4, 3, 1, 2)
     Xtest = Xtest.transpose(0, 4, 3, 1, 2)
     return Xtrain, Xtest, ytrain, ytest, X_all, y_all, Xtrain_positions, Xtest_positions
+
+
 if __name__ == '__main__':
-    split_train_test('PU',64,345,5,3)
+    split_train_test('PU', 64, 345, 5, 3)
