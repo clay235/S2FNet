@@ -1,4 +1,4 @@
-# S2FNet
+# S2FNet: Spatial-Spectral-Frequency Network for Few-Shot Hyperspectral Image Classification via Frequency Domain Prompt Pool
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
